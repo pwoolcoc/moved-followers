@@ -5,7 +5,7 @@ use std::error::Error;
 
 use structopt::StructOpt;
 use elefren::prelude::*;
-use elefren::helpers::cli;
+use elefren::helpers::{cli, json};
 
 #[derive(StructOpt)]
 struct Options {
@@ -19,11 +19,17 @@ struct Options {
 fn main() -> Result<(), Box<Error>> {
     let opts = Options::from_args();
     let domain = format!("https://{}", &opts.domain);
-    let registration = Registration::new(domain)
-            .client_name("find-moved-followers")
-            .scopes(Scopes::read_all() | Scopes::follow() | Scopes::write_all())
-            .build()?;
-    let client = cli::authenticate(registration)?;
+    let client = if let Ok(data) = json::from_file("oauth") {
+        Mastodon::from(data)
+    } else {
+        let registration = Registration::new(domain)
+                .client_name("find-moved-followers")
+                .scopes(Scopes::read_all() | Scopes::follow() | Scopes::write_all())
+                .build()?;
+        let client = cli::authenticate(registration)?;
+        json::to_file(&*client, "oauth")?;
+        client
+    };
     let me = client.verify_credentials()?;
 
     let following = client.following(&me.id)?.items_iter();

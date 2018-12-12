@@ -19,7 +19,8 @@ struct Options {
 fn main() -> Result<(), Box<Error>> {
     let opts = Options::from_args();
     let domain = format!("https://{}", &opts.domain);
-    let client = if let Ok(data) = json::from_file("oauth") {
+    let datafile = format!("{}-oauth", &opts.domain);
+    let client = if let Ok(data) = json::from_file(&datafile) {
         Mastodon::from(data)
     } else {
         let registration = Registration::new(domain)
@@ -27,7 +28,7 @@ fn main() -> Result<(), Box<Error>> {
                 .scopes(Scopes::read_all() | Scopes::follow() | Scopes::write_all())
                 .build()?;
         let client = cli::authenticate(registration)?;
-        json::to_file(&*client, "oauth")?;
+        json::to_file(&*client, &datafile)?;
         client
     };
     let me = client.verify_credentials()?;
